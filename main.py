@@ -19,12 +19,12 @@ API_KEY = os.environ.get("API_KEY")
 
 
 # API Key authentication
-async def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")):
+async def verify_api_key(x_api_key: str | None = Header(None, alias="X-API-Key")):
     """Verify the API key from request header."""
     if not API_KEY:
         # If no API_KEY is set, allow all requests (for local development)
         return True
-    if x_api_key != API_KEY:
+    if not x_api_key or x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
     return True
 
@@ -69,10 +69,7 @@ def get_random_mask() -> tuple[Path, str]:
 def apply_mask(image_buffer: BytesIO, mask_path: Path) -> Image.Image:
     """
     Apply mask as a crop shape to the image.
-
-    The mask's alpha channel defines visible areas:
-    - Opaque (alpha=255) = visible in output
-    - Transparent (alpha=0) = cut out
+    Scales mask UP to match input image size for quality preservation.
     """
     try:
         image = Image.open(image_buffer)
@@ -81,24 +78,27 @@ def apply_mask(image_buffer: BytesIO, mask_path: Path) -> Image.Image:
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Cannot open image: {str(e)}")
 
+    # Load mask
     mask = Image.open(mask_path).convert("RGBA")
     mask_width, mask_height = mask.size
-
-    # Resize to cover mask dimensions
     img_width, img_height = image.size
-    scale = max(mask_width / img_width, mask_height / img_height)
-    new_width = int(img_width * scale)
-    new_height = int(img_height * scale)
-    image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
-    # Top-center crop to mask size (for portraits/faces)
-    left = (new_width - mask_width) // 2  # Center horizontally
-    top = 0  # Start from top to capture faces
-    image = image.crop((left, top, left + mask_width, top + mask_height))
+    # Scale mask UP to fit input image (use smaller dimension to ensure mask fits)
+    scale_factor = min(img_width / mask_width, img_height / mask_height)
+    target_width = int(mask_width * scale_factor)
+    target_height = int(mask_height * scale_factor)
+
+    # Scale mask up to target size
+    mask = mask.resize((target_width, target_height), Image.Resampling.LANCZOS)
+
+    # Top-center crop the input image to mask dimensions
+    left = (img_width - target_width) // 2
+    top = 0  # Start from top for faces
+    image = image.crop((left, top, left + target_width, top + target_height))
 
     # Apply mask alpha channel
     mask_alpha = mask.split()[3]
-    output = Image.new("RGBA", (mask_width, mask_height), (0, 0, 0, 0))
+    output = Image.new("RGBA", (target_width, target_height), (0, 0, 0, 0))
     output.paste(image, (0, 0))
     output.putalpha(mask_alpha)
 
