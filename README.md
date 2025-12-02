@@ -4,7 +4,7 @@ A FastAPI-based REST API that applies decorative masks to photos. The API crops 
 
 ## API Specification
 
-**Base URL**: `https://web-production-699e3b.up.railway.app`
+**Base URL**: `https://web-production-dd101.up.railway.app`
 
 ### Authentication
 
@@ -62,7 +62,7 @@ Apply a random mask to an image fetched from a URL.
 
 **Example:**
 ```bash
-curl -X POST "https://web-production-699e3b.up.railway.app/mask-by-url" \
+curl -X POST "https://web-production-dd101.up.railway.app/mask-by-url" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-api-key" \
   -d '{"url": "https://example.com/photo.jpg"}'
@@ -97,7 +97,7 @@ Apply a random mask to an uploaded image file.
 
 **Example:**
 ```bash
-curl -X POST "https://web-production-699e3b.up.railway.app/mask-by-upload" \
+curl -X POST "https://web-production-dd101.up.railway.app/mask-by-upload" \
   -H "X-API-Key: your-api-key" \
   -F "file=@photo.jpg"
 ```
